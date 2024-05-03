@@ -28,7 +28,7 @@ ADD CONSTRAINT fk_country_id FOREIGN KEY (country_id) REFERENCES countries(id);
 SET SQL_SAFE_UPDATES = 0;
 
 UPDATE infectious_cases_normalized AS icn, countries AS c  
-SET icn.country_id = c.id WHERE c.code = icn.code;
+SET icn.country_id = c.id WHERE c.code = icn.code AND c.country=icn.entity;
 
 SET SQL_SAFE_UPDATES = 1;
 
@@ -39,7 +39,7 @@ DROP COLUMN code;
 3.
 USE pandemic;
 
-SELECT id, AVG(Number_rabies) AS average_num, MIN(Number_rabies) AS min_num, MAX(Number_rabies) AS max_num
+SELECT id, AVG(Number_rabies) AS average_num, MIN(Number_rabies) AS min_num, MAX(Number_rabies) AS max_num, SUM(Number_rabies) AS sum_num
 FROM infectious_cases_normalized
 WHERE Number_rabies IS NOT NULL AND Number_rabies <> ''
 GROUP BY id
