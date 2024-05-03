@@ -1,0 +1,91 @@
+1.
+CREATE SCHEMA IF NOT EXISTS pandemic;
+
+USE pandemic;
+
+SELECT * FROM infectious_cases;
+
+2.
+USE pandemic;
+
+CREATE TABLE IF NOT EXISTS countries  (
+id INT AUTO_INCREMENT PRIMARY KEY,
+code VARCHAR(8) UNIQUE,
+country VARCHAR(50) UNIQUE
+);
+
+INSERT INTO countries (code, country)
+SELECT DISTINCT code, entity FROM infectious_cases;
+
+CREATE TABLE infectious_cases_normalized
+AS SELECT * FROM infectious_cases;
+
+ALTER TABLE infectious_cases_normalized
+ADD id INT PRIMARY KEY AUTO_INCREMENT FIRST,
+ADD country_id INT AFTER id,
+ADD CONSTRAINT fk_country_id FOREIGN KEY (country_id) REFERENCES countries(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE infectious_cases_normalized AS icn, countries AS c  
+SET icn.country_id = c.id WHERE c.code = icn.code;
+
+SET SQL_SAFE_UPDATES = 1;
+
+ALTER TABLE infectious_cases_normalized
+DROP COLUMN entity,
+DROP COLUMN code;
+
+3.
+USE pandemic;
+
+SELECT id, AVG(Number_rabies) AS average_num, MIN(Number_rabies) AS min_num, MAX(Number_rabies) AS max_num
+FROM infectious_cases_normalized
+WHERE Number_rabies IS NOT NULL AND Number_rabies <> ''
+GROUP BY id
+ORDER BY average_num DESC
+LIMIT 10;
+
+4.1
+USE pandemic;
+
+SELECT Year, MAKEDATE(Year, 1) AS year_start, CURDATE() as year_current, TIMESTAMPDIFF(YEAR, MAKEDATE(Year, 1), CURDATE()) AS year_difference
+FROM infectious_cases_normalized;
+
+4.2
+USE pandemic;
+
+ALTER TABLE infectious_cases_normalized
+ADD COLUMN year_start DATE AFTER Year,
+ADD COLUMN year_current DATE AFTER year_start,
+ADD COLUMN year_difference INT AFTER year_current;
+
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE infectious_cases_normalized
+SET 
+    year_start = MAKEDATE(Year, 1),
+    year_current = CURDATE(),
+    year_difference = TIMESTAMPDIFF(YEAR, MAKEDATE(Year, 1), CURDATE());
+    
+SET SQL_SAFE_UPDATES = 1;
+
+
+5.
+USE pandemic;
+
+DROP FUNCTION IF EXISTS CalculateYearDifference;
+
+DELIMITER //
+CREATE FUNCTION CalculateYearDifference(year_value INT)
+RETURNS INT
+DETERMINISTIC
+NO SQL
+BEGIN
+    DECLARE result INT;
+    SET result = TIMESTAMPDIFF(YEAR, MAKEDATE(year_value, 1), CURDATE());
+    RETURN result;
+END //
+DELIMITER ;
+
+SELECT Year, CURDATE() as year_current, CalculateYearDifference(Year) as year_difference FROM infectious_cases_normalized;
